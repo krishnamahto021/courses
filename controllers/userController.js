@@ -1,6 +1,8 @@
 const validator = require("validator");
 const User = require("../models/userModel");
+const Course = require("../models/courseModel");
 const passwordHelper = require("../helpers/passwordHelper");
+const { uploadImageToCloudinary } = require("../helpers/imageUploader");
 
 const jwt = require("jsonwebtoken");
 
@@ -25,12 +27,17 @@ module.exports.signup = async (req, res) => {
     const hashedPassword = await passwordHelper.hashingPasswordFunction(
       password
     );
+    let profilePicture;
+    if (req.file) {
+      profilePicture = await uploadImageToCloudinary(req.file);
+    }
 
     const newUser = await User.create({
       name,
       email,
       role,
       password: hashedPassword,
+      profilePicture,
     });
 
     res.status(201).json({ message: "User registered successfully", newUser });
@@ -107,7 +114,11 @@ module.exports.updateProfile = async (req, res) => {
     const userId = req.user._id;
 
     const updatedFields = req.body;
-
+    let profilePicture;
+    if (req.file) {
+      profilePicture = await uploadImageToCloudinary(req.file);
+      updatedFields.profilePicture = profilePicture;
+    }
     const updatedUser = await User.findByIdAndUpdate(userId, updatedFields, {
       new: true,
     }).select("-password");
@@ -147,7 +158,7 @@ exports.enrollInCourse = async (req, res) => {
 
 module.exports.viewEnrolledCourses = async (req, res) => {
   try {
-    const userId = req.user._id; 
+    const userId = req.user._id;
     const page = parseInt(req.query.page) || 1;
     const limit = 5;
     const skip = (page - 1) * limit;
@@ -160,6 +171,32 @@ module.exports.viewEnrolledCourses = async (req, res) => {
     res.status(200).json({ enrolledCourses: user.enrolledCourses });
   } catch (error) {
     console.error("Error fetching enrolled courses:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports.filterCourses = async (req, res) => {
+  try {
+    const { category, level, page } = req.query;
+    const limit = 10;
+    const query = {};
+    if (category) {
+      query.category = category;
+    }
+    if (level) {
+      query.level = level;
+    }
+
+    const skip = (parseInt(page) - 1) * limit || 0;
+
+    const courses = await Course.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({ courses });
+  } catch (error) {
+    console.error("Error fetching courses:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 };
