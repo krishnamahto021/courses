@@ -122,3 +122,44 @@ module.exports.updateProfile = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
+exports.enrollInCourse = async (req, res) => {
+  try {
+    const courseId = req.params.id;
+    const userId = req.user._id;
+    const user = await User.findById(userId);
+    if (user.enrolledCourses.includes(courseId)) {
+      return res
+        .status(400)
+        .json({ error: "User is already enrolled in this course" });
+    }
+
+    // Enroll user in the course
+    user.enrolledCourses.push(courseId);
+    await user.save();
+
+    res.status(200).json({ message: "Course enrolled successfully" });
+  } catch (error) {
+    console.error("Error enrolling course:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+module.exports.viewEnrolledCourses = async (req, res) => {
+  try {
+    const userId = req.user._id; 
+    const page = parseInt(req.query.page) || 1;
+    const limit = 5;
+    const skip = (page - 1) * limit;
+
+    const user = await User.findById(userId).populate({
+      path: "enrolledCourses",
+      options: { sort: { createdAt: -1 }, limit: limit, skip: skip },
+    });
+
+    res.status(200).json({ enrolledCourses: user.enrolledCourses });
+  } catch (error) {
+    console.error("Error fetching enrolled courses:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};

@@ -17,4 +17,16 @@ router.put(
   passport.authenticate("jwt", { session: false }),
   userController.updateProfile
 );
+
+router.post(
+  "/enroll-course/:id",
+  passport.authenticate("jwt", { session: false }),
+  userController.enrollInCourse
+);
+router.get(
+  "/view-course",
+  passport.authenticate("jwt", { session: false }),
+  userController.viewEnrolledCourses
+);
+
 module.exports = router;
